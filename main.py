@@ -154,7 +154,7 @@ def print_menu():
     print("4. Exit")
     print("==============================")
     print("During recording, press ESC to stop recording.")
-
+    print("During replay, press F4 to stop the replay.")
 
 def record_actions(recorder):
     recorder.start_recording()
@@ -196,10 +196,16 @@ def main():
         elif choice == "3":
             # Input number of loops as int
             number_of_loops = input("Enter number of loops: ")
+            if not int(number_of_loops):
+                number_of_loops = 1
+                print("Bad value setting number of loops to default value of 1.")
 
             # Input delay as float
             delay_time = input("Enter delay between actions (in seconds 0.1 to 0.15): ")
-
+            if not float(delay_time):
+                delay_time = 0.13
+                print("Bad value setting delay to default value of 0.13 seconds.")
+                
             countdown_before_start()
             replay_actions(recorder, delay=float(delay_time), loop_count=int(number_of_loops))
             break
