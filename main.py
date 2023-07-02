@@ -41,7 +41,7 @@ class MacroRecorder:
 
     def save_actions(self):
         filename = self.generate_filename()
-        filename = f"recordings/{filename}.txt"
+        filename = f"recordings/{filename}.macro"
 
         try:
             with open(filename, "w") as file:
