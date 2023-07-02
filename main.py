@@ -13,12 +13,18 @@ class MacroRecorder:
         self.keyboard_controller = keyboard.Controller()
 
     def on_mouse_click(self, x, y, button, pressed):
+        click_duration_threshold = 0.13  # Threshold duration in seconds
         if self.recording:
             if pressed:
-                action = f"Mouse Press: ({x}, {y}), {button}, {time.perf_counter()}"
+                self.mouse_press_time = time.perf_counter()
             else:
-                action = f"Mouse Release: ({x}, {y}), {button}, {time.perf_counter()}"
-            self.actions.append(action)
+                mouse_release_time = time.perf_counter()
+                duration = mouse_release_time - self.mouse_press_time
+                if duration < click_duration_threshold:
+                    action = f"Mouse Click: ({x}, {y}), {button}, {mouse_release_time}"
+                else:
+                    action = f"Mouse Hold: ({x}, {y}), {button}, {self.mouse_press_time}, {duration}"
+                self.actions.append(action)
 
     def on_keyboard_press(self, key):
         if key == keyboard.Key.esc:
@@ -74,37 +80,34 @@ class MacroRecorder:
 
     def replay_actions(self, loop_count):
         print(f"Replaying actions... Loop count: {loop_count}")
+        print(f"Number of actions: {len(self.actions)}")
+
         self.stop_replay = False
         for _ in range(loop_count):
-            start_time = time.perf_counter()
             for action in self.actions:
                 if self.stop_replay:
                     print("Replay interrupted by user.")
                     return
-                if "Mouse Press" in action:
-                    x, y, button, press_time = action.split(": ")[1].split(", ")
+                if "Mouse Click" in action:
+                    x, y, button, click_time = action.split(": ")[1].split(", ")
+                    x, y = int(x.strip("()")), int(y.strip("()"))
+                    button = button.strip()
+                    click_time = float(click_time.strip())
+                    self.perform_mouse_click(x, y, button)
+                elif "Mouse Hold" in action:
+                    x, y, button, press_time, duration = action.split(": ")[1].split(", ")
                     x, y = int(x.strip("()")), int(y.strip("()"))
                     button = button.strip()
                     press_time = float(press_time.strip())
+                    duration = float(duration.strip())
                     self.perform_mouse_press(x, y, button)
-                    print(f"Performed Mouse Press at ({x}, {y}) with button '{button}'")
-                elif "Mouse Release" in action:
-                    x, y, button, release_time = action.split(": ")[1].split(", ")
-                    x, y = int(x.strip("()")), int(y.strip("()"))
-                    button = button.strip()
-                    release_time = float(release_time.strip())
-                    if 'press_time' in locals():
-                        duration = release_time - press_time
-                        if duration > 0:
-                            time.sleep(duration)
+                    time.sleep(duration)
                     self.perform_mouse_release(x, y, button)
-                    print(f"Performed Mouse Release at ({x}, {y}) with button '{button}'")
                 elif "Keyboard Press" in action:
                     key_name, press_time = action.split(": ")[1].split(", ")
                     key_name = key_name.strip()
                     press_time = float(press_time.strip())
                     self.perform_keyboard_press(key_name)
-                    print(f"Performed Keyboard Press: '{key_name}'")
                 elif "Keyboard Release" in action:
                     key_name, release_time = action.split(": ")[1].split(", ")
                     key_name = key_name.strip()
@@ -114,7 +117,6 @@ class MacroRecorder:
                         if duration > 0:
                             time.sleep(duration)
                     self.perform_keyboard_release(key_name)
-                    print(f"Performed Keyboard Release: '{key_name}'")
 
                 # Check if F4 key was pressed during replay
                 with keyboard.Events() as events:
@@ -127,7 +129,7 @@ class MacroRecorder:
                         return
 
         print("Replay complete.")
-
+            
     def perform_mouse_press(self, x, y, button_name):
         button_mapping = {
             'Button.left': 'left',
@@ -139,6 +141,20 @@ class MacroRecorder:
         button = button_mapping.get(button_name, None)
         if button is not None:
             pyautogui.mouseDown(x=x, y=y, button=button)
+        else:
+            print(f"Invalid mouse button name: {button_name}")
+
+    def perform_mouse_click(self, x, y, button_name):
+        button_mapping = {
+            'Button.left': 'left',
+            'Button.right': 'right',
+            'Button.middle': 'middle',
+            'Button.forward': 'forward',
+            'Button.backward': 'backward'
+        }
+        button = button_mapping.get(button_name, None)
+        if button is not None:
+            pyautogui.click(x=x, y=y, button=button)
         else:
             print(f"Invalid mouse button name: {button_name}")
 
@@ -157,7 +173,6 @@ class MacroRecorder:
             print(f"Invalid mouse button name: {button_name}")
 
     def perform_keyboard_press(self, key):
-        print(f"Performing keyboard press: {key}")
         if hasattr(keyboard.Key, key):
             key = getattr(keyboard.Key, key)
         elif key.startswith("Key."):
@@ -167,7 +182,6 @@ class MacroRecorder:
         self.keyboard_controller.press(key)
 
     def perform_keyboard_release(self, key):
-        print(f"Performing keyboard release: {key}")
         if hasattr(keyboard.Key, key):
             key = getattr(keyboard.Key, key)
         elif key.startswith("Key."):
@@ -183,9 +197,7 @@ def print_menu():
     print("3. Replay Actions")
     print("4. Exit")
     print("==============================")
-    print("During recording, press ESC to stop recording.")
-    print("During replay, press F4 to stop the replay.")
-    print("Recodings are automaticly stored and loaded from the recordings folder.")
+    print("During recording, press ESC to stop recording.\nDuring replay, press F4 to stop the replay.\nRecodings are automaticly stored and loaded from the recordings folder.")
 
 def record_actions(recorder):
     recorder.start_recording()
@@ -199,11 +211,7 @@ def load_actions(recorder):
     filename = input("Enter the filename to load actions: ")
     recorder.load_actions(filename)
 
-def replay_actions(recorder, loop_count):
-    recorder.replay_actions(loop_count)
-
-# Used for countdown before starting to record or replay actions.
-def countdown_before_start():
+def three_second_countdown_before_start():
     for i in range(3, 0, -1):
         print(i)
         time.sleep(1)
@@ -215,7 +223,7 @@ def main():
         choice = input("Enter your choice: ")
 
         if choice == "1":
-            countdown_before_start()
+            three_second_countdown_before_start()
             record_actions(recorder)
         elif choice == "2":
             load_actions(recorder)
@@ -229,9 +237,8 @@ def main():
                 except ValueError:
                     print("Invalid number of loops. Please try again.")
 
-            countdown_before_start()
-            replay_actions(recorder, loop_count=int(number_of_loops))
-            break
+            three_second_countdown_before_start()
+            recorder.replay_actions(number_of_loops)
         elif choice == "4":
             break
         else:
