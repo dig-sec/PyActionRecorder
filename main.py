@@ -10,6 +10,7 @@ class MacroRecorder:
         self.actions = []
         self.recording = False
         self.stop_replay = False
+        self.mouse_press_time = None
         self.keyboard_controller = keyboard.Controller()
 
     def on_mouse_click(self, x, y, button, pressed):
@@ -43,6 +44,7 @@ class MacroRecorder:
 
     def start_recording(self):
         self.recording = True
+        self.actions = []
         print("Recording actions... Press ESC to stop recording.")
 
     def save_actions(self):
@@ -84,6 +86,7 @@ class MacroRecorder:
 
         self.stop_replay = False
         for _ in range(loop_count):
+            prev_action_time = None
             for action in self.actions:
                 if self.stop_replay:
                     print("Replay interrupted by user.")
@@ -93,21 +96,33 @@ class MacroRecorder:
                     x, y = int(x.strip("()")), int(y.strip("()"))
                     button = button.strip()
                     click_time = float(click_time.strip())
+                    if prev_action_time is not None:
+                        delay = click_time - prev_action_time
+                        time.sleep(delay)
                     self.perform_mouse_click(x, y, button)
+                    prev_action_time = click_time
                 elif "Mouse Hold" in action:
                     x, y, button, press_time, duration = action.split(": ")[1].split(", ")
                     x, y = int(x.strip("()")), int(y.strip("()"))
                     button = button.strip()
                     press_time = float(press_time.strip())
                     duration = float(duration.strip())
+                    if prev_action_time is not None:
+                        delay = press_time - prev_action_time
+                        time.sleep(delay)
                     self.perform_mouse_press(x, y, button)
                     time.sleep(duration)
                     self.perform_mouse_release(x, y, button)
+                    prev_action_time = press_time + duration
                 elif "Keyboard Press" in action:
                     key_name, press_time = action.split(": ")[1].split(", ")
                     key_name = key_name.strip()
                     press_time = float(press_time.strip())
+                    if prev_action_time is not None:
+                        delay = press_time - prev_action_time
+                        time.sleep(delay)
                     self.perform_keyboard_press(key_name)
+                    prev_action_time = press_time
                 elif "Keyboard Release" in action:
                     key_name, release_time = action.split(": ")[1].split(", ")
                     key_name = key_name.strip()
@@ -116,7 +131,11 @@ class MacroRecorder:
                         duration = release_time - press_time
                         if duration > 0:
                             time.sleep(duration)
-                    self.perform_keyboard_release(key_name)
+                        if prev_action_time is not None:
+                            delay = release_time - prev_action_time
+                            time.sleep(delay)
+                        self.perform_keyboard_release(key_name)
+                        prev_action_time = release_time
 
                 # Check if F4 key was pressed during replay
                 with keyboard.Events() as events:
@@ -129,7 +148,7 @@ class MacroRecorder:
                         return
 
         print("Replay complete.")
-            
+
     def perform_mouse_press(self, x, y, button_name):
         button_mapping = {
             'Button.left': 'left',
