@@ -14,7 +14,7 @@ class MacroRecorder:
         self.keyboard_controller = keyboard.Controller()
 
     def on_mouse_click(self, x, y, button, pressed):
-        click_duration_threshold = 0.13  # Threshold duration in seconds
+        click_duration_threshold = 0.1
         if self.recording:
             if pressed:
                 self.mouse_press_time = time.perf_counter()
@@ -212,11 +212,9 @@ class MacroRecorder:
 def print_menu():
     print("\n===== Macro Recorder Menu =====")
     print("1. Record Actions")
-    print("2. Load Actions from File")
+    print("2. Load macro from recordings folder.")
     print("3. Replay Actions")
     print("4. Exit")
-    print("==============================")
-    print("During recording, press ESC to stop recording.\nDuring replay, press F4 to stop the replay.\nRecodings are automaticly stored and loaded from the recordings folder.")
 
 def record_actions(recorder):
     recorder.start_recording()
@@ -232,7 +230,7 @@ def load_actions(recorder):
 
 def three_second_countdown_before_start():
     for i in range(3, 0, -1):
-        print(i)
+        print(f"Count down before start: {i}", end="\r")
         time.sleep(1)
 
 def main():
@@ -262,9 +260,6 @@ def main():
             break
         else:
             print("Invalid choice. Please try again.")
-
-    print("Exiting program...")
-    time.sleep(1)
     
 if __name__ == "__main__":
     main()
